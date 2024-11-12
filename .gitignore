@@ -1,0 +1,4 @@
+VAE/data/
+VAE/logs/VanillaVAE/
+VAE/__pycache__
+Scored-Base/
