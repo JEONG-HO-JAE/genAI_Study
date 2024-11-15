@@ -1,18 +1,21 @@
 import os
-from path import Path
+import sys
+from pathlib import Path
 
 import hydra
 import omegaconf
 from omegaconf import DictConfig, OmegaConf
 
-from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.loggers import TensorBoardLogger
+
 
 from callbacks.ema import EMA
 from callbacks.logger import LoggerCallback
 
 from utils.paths import MODEL
+from data.datasets import DDPMDataset
 
 @hydra.main('config', 'train.yaml')
 def train(config: DictConfig):
@@ -30,20 +33,18 @@ def train(config: DictConfig):
         omegaconf.OmegaConf.save(config, f)
     # If a checkpoint is specified, load the model weights from the checkpoint
         
-    # ????
-    Path.getcwd().joinpath('gen_images').makedirs_p()
-    MODEL.copytree(Path.getcwd().joinpath('model'))
+    # Directory setup
+    Path.cwd().joinpath('gen_images').mkdir(parents=True, exist_ok=True)
+    MODEL.copytree(Path.cwd().joinpath('model'))
     
     # Create the variance scheduler and a deep generative model using Hydra
+    denoiser_module = hydra.utils.instantiate(config.denoiser_module)
     scheduler = hydra.utils.instantiate(config.scheduler)
     opt = hydra.utils.instantiate(config.optimizer)
     model: pl.LightningModule = hydra.utils.instantiate(config.model,
+                                                        denoiser_module=denoiser_module,
                                                         opt=opt,
                                                         variance_scheduler=scheduler)
-    
-    # Create training and validation datasets using Hydra
-    train_dataset: Dataset = hydra.utils.instantiate(config.dataset.train)
-    val_dataset: Dataset = hydra.utils.instantiate(config.dataset.val)
     
     # Load the model weights from the checkpoint
     if ckpt is not None:
@@ -51,8 +52,10 @@ def train(config: DictConfig):
     model.save_hyperparameters(OmegaConf.to_object(config)['model'])
     
     pin_memory = 'gpu' in config.accelerator
-    train_dl = DataLoader(train_dataset, batch_size=config.batch_size, pin_memory=pin_memory)
-    val_dl = DataLoader(val_dataset, batch_size=config.batch_size, pin_memory=pin_memory)
+    data = hydra.utils.instantiate(config.dataset)
+    data.setup()
+    train_dl = data.train_dataloader()
+    val_dl = data.val_dataloader()
     
     # Create a ModelCheckpoint callback that saves the model weights to disk during training
     ckpt_callback = ModelCheckpoint('./', 
@@ -63,6 +66,7 @@ def train(config: DictConfig):
     ddpm_logger = LoggerCallback(config.freq_logging, 
                                  config.freq_logging_norm_grad, 
                                  config.batch_size_gen_images) 
+    
     callbacks = [ckpt_callback, ddpm_logger]
     
     # Add additional callbacks if specified in the configuration file
@@ -83,4 +87,5 @@ def train(config: DictConfig):
 
     
 if __name__ == '__main__':
+    sys.path.append(str(Path(__file__).parent.absolute()))
     train()

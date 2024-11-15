@@ -1,0 +1,9 @@
+_target_: data.datasets.DDPMDataset
+data_path: /home/work/reality/hojae/genAI/Diffusion-Based/data/celeba
+train_batch_size: 64
+val_batch_size:  64
+patch_size: 64
+width: 64
+height : 64
+channels: 3
+num_workers: 4

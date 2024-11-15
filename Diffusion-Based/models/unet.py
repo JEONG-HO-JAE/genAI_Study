@@ -61,6 +61,7 @@ class ResBlockTimeEmbed(nn.Module):
             time_embed_size (int): size of the time embedding
             p_dropout (float): dropout probability
         """
+        super().__init__()
         num_groups_in = self.find_max_num_groups(in_channels)
         self.conv = nn.Sequential(
             nn.GroupNorm(num_groups_in, in_channels),
@@ -148,7 +149,6 @@ class UNet(nn.Module):
                                       f'{(len(strides) + 1)} == {(len(paddings) + 1)} == \
                                                               {(len(p_dropouts) + 1)}'
         self.channels = channels
-        channels[0] *= 2
         
         self.time_embed_size = time_embed_size
         self.downsample_blocks = nn.ModuleList([
@@ -158,7 +158,7 @@ class UNet(nn.Module):
         self.use_downsample = downsample
         self.downsample_op = nn.MaxPool2d(kernel_size=2)
         self.middle_block = ResBlockTimeEmbed(channels[-1], channels[-1], kernel_sizes[-1], strides[-1], paddings[-1], time_embed_size, p_dropouts[-1])
-        
+        channels[0] *= 2
         self.upsample_blocks = nn.ModuleList([
             ResBlockTimeEmbed((2 if i != 0 else 1) * channels[-i - 1], channels[-i - 2], kernel_sizes[-i - 1],
                               strides[-i - 1],

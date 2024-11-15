@@ -1,12 +1,14 @@
 defaults:
-  - model: unet_paper
+  - denoiser_module: unet
+  - model: ddpm
   - scheduler: linear
-  - dataset: mnist
+  - dataset: myceleba
   - optimizer: adam_ddpm
   - optional model_dataset: ${model}-${dataset}
   - optional model_scheduler: ${model}-${scheduler}
 
 batch_size: 128
+max_epochs: 1
 noise_steps: 4_000  # T
 accelerator: gpu  # from pytorch-lightning, the hardware platform used to train the neural network
 devices: 1  # the devices to use in a given hardware platform (see argument above)
