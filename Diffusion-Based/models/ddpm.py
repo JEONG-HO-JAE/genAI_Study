@@ -212,6 +212,7 @@ class GaussianDDPM(pl.LightningModule):
         
         X_noise = torch.randn(batch_size, self.input_channels, self.width, self.height,
                               device=self.device)
+        print(X_noise.shape)
         beta_sqrt = torch.sqrt(self.betas)
         
         # T times sampling
