@@ -1,4 +1,5 @@
 defaults:
+  - _self_
   - denoiser_module: unet
   - model: ddpm
   - scheduler: linear
@@ -7,11 +8,11 @@ defaults:
   - optional model_dataset: ${model}-${dataset}
   - optional model_scheduler: ${model}-${scheduler}
 
-batch_size: 128
+batch_size: 32
 max_epochs: 100
 noise_steps: 1_000  # T
 accelerator: gpu  # from pytorch-lightning, the hardware platform used to train the neural network
-devices: 2  # the devices to use in a given hardware platform (see argument above)
+devices: 1  # the devices to use in a given hardware platform (see argument above)
 gradient_clip_val: 0.0  # gradient clip value - set to 0.0 to disable
 gradient_clip_algorithm: norm  # gradient clip algorithm - either 'norm' or 'value'
 ema: true  # exponential moving average
