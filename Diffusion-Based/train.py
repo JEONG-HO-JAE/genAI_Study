@@ -8,14 +8,8 @@ from omegaconf import DictConfig, OmegaConf
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from pytorch_lightning.loggers import TensorBoardLogger
-
-
 from callbacks.ema import EMA
 from callbacks.logger import LoggerCallback
-
-from utils.paths import MODEL
-from data.datasets import DDPMDataset
 
 @hydra.main('config', 'train.yaml')
 def train(config: DictConfig):
@@ -35,7 +29,6 @@ def train(config: DictConfig):
         
     # Directory setup
     Path.cwd().joinpath('gen_images').mkdir(parents=True, exist_ok=True)
-    MODEL.copytree(Path.cwd().joinpath('model'))
     
     # Create the variance scheduler and a deep generative model using Hydra
     denoiser_module = hydra.utils.instantiate(config.denoiser_module)
@@ -50,8 +43,7 @@ def train(config: DictConfig):
     if ckpt is not None:
         model.load_from_checkpoint(ckpt, variance_scheduler=scheduler)
     model.save_hyperparameters(OmegaConf.to_object(config)['model'])
-    
-    pin_memory = 'gpu' in config.accelerator
+
     data = hydra.utils.instantiate(config.dataset)
     data.setup()
     train_dl = data.train_dataloader()

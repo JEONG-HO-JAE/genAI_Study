@@ -7,3 +7,4 @@ width: 256
 height : 256
 channels: 3
 num_workers: 4
+pin_memory: True

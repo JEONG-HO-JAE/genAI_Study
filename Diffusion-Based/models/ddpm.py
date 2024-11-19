@@ -212,28 +212,30 @@ class GaussianDDPM(pl.LightningModule):
         
         X_noise = torch.randn(batch_size, self.input_channels, self.width, self.height,
                               device=self.device)
-        print(X_noise.shape)
         beta_sqrt = torch.sqrt(self.betas)
         
-        # T times sampling
-        for t in range(T-1, -1, -1):
-            if get_intermediate_steps:
-                steps.append(X_noise)
-            t = torch.LongTensor([t]).to(self.device)
-            eps, v = self.denoiser_module(X_noise, t)
-            
-            # if variational lower bound is present on the loss function hence v (the logit of variance) is trained
-            # else the variance is taked fixed as in the original DDPM paper
-            sigma = sigma_x_t(v, t, self.betas_hat, self.betas) if self.vlb else beta_sqrt[t].reshape(-1, 1, 1, 1)
-            z = torch.rand_like(X_noise)
-            
-            if t == 0:
-                z.fill_(0)
+        with torch.no_grad():
+            # T times sampling
+            for t in range(T-1, -1, -1):
+                if get_intermediate_steps:
+                    steps.append(X_noise)
+                t = torch.LongTensor([t]).to(self.device)
+                eps, v = self.denoiser_module(X_noise, t)
                 
-            alpha_t = self.alphas[t].reshape(-1, 1, 1, 1)
-            alpha_hat_t = self.alphas_hat[t].reshape(-1, 1, 1, 1)
-            
-            X_noise = 1 / (torch.sqrt(alpha_t)) * (X_noise - ((1 - alpha_t) / torch.sqrt(1 - alpha_hat_t)) * eps) + sigma * z
+                # if variational lower bound is present on the loss function hence v (the logit of variance) is trained
+                # else the variance is taked fixed as in the original DDPM paper
+                sigma = sigma_x_t(v, t, self.betas_hat, self.betas) if self.vlb else beta_sqrt[t].reshape(-1, 1, 1, 1)
+                z = torch.rand_like(X_noise)
+                
+                if t == 0:
+                    z.fill_(0)
+                    
+                alpha_t = self.alphas[t].reshape(-1, 1, 1, 1)
+                alpha_hat_t = self.alphas_hat[t].reshape(-1, 1, 1, 1)
+                
+                X_noise -= (1 - alpha_t) / torch.sqrt(1 - alpha_hat_t) * eps
+                X_noise /= torch.sqrt(alpha_t)
+                X_noise += sigma * z
 
         X_noise = (X_noise + 1) / 2
         if get_intermediate_steps:

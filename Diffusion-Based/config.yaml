@@ -1,0 +1,78 @@
+denoiser_module:
+  _target_: models.unet.UNet
+  channels:
+  - 3
+  - 128
+  - 256
+  - 256
+  - 384
+  kernel_sizes:
+  - 3
+  - 3
+  - 3
+  - 3
+  strides:
+  - 1
+  - 1
+  - 1
+  - 1
+  paddings:
+  - 1
+  - 1
+  - 1
+  - 1
+  p_dropouts:
+  - 0.1
+  - 0.1
+  - 0.1
+  - 0.1
+  time_embed_size: 100
+  downsample: true
+model:
+  _target_: models.ddpm.GaussianDDPM
+  T: ${noise_steps}
+  lambda_variational: 0.0001
+  denoiser_module: ${denoiser_module}
+  width: ${dataset.width}
+  height: ${dataset.height}
+  logging_freq: 1000
+  input_channels: ${dataset.channels}
+  vlb: false
+  init_step_vlb: 1000
+scheduler:
+  _target_: variance_scheduler.linear.LinearScheduler
+  beta_start: 2.5e-05
+  beta_end: 0.005
+  T: ${noise_steps}
+dataset:
+  _target_: data.datasets.DDPMDataset
+  data_path: /home/work/reality/hojae/genAI/Diffusion-Based/data/celeba
+  train_batch_size: 64
+  val_batch_size: 64
+  patch_size: 256
+  width: 256
+  height: 256
+  channels: 3
+  num_workers: 4
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.0001
+  weight_decay: 0.0
+batch_size: 128
+max_epochs: 1
+noise_steps: 4000
+accelerator: gpu
+devices: 2
+gradient_clip_val: 0.0
+gradient_clip_algorithm: norm
+ema: true
+ema_decay: 0.99
+early_stop: true
+patience: 10
+min_delta: 0.0
+ckpt: null
+seed: 1337
+freq_logging: 100
+freq_logging_norm_grad: 100
+batch_size_gen_images: 64
