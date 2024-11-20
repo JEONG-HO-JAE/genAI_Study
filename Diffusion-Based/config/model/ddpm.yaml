@@ -6,5 +6,3 @@ width: ${dataset.width}
 height: ${dataset.height}
 logging_freq: 1_000
 input_channels: ${dataset.channels}
-vlb: false
-init_step_vlb: 1_000

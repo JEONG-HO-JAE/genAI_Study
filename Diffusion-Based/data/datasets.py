@@ -1,7 +1,8 @@
+import os
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from typing import Optional, Sequence, Union
-from torchvision.datasets import CelebA
+from torchvision.datasets import CelebA, MNIST
 from pytorch_lightning import LightningDataModule
 
 class MyCelebA(CelebA):
@@ -10,12 +11,12 @@ class MyCelebA(CelebA):
 
     @property
     def base_folder(self):
-        # 필요한 데이터가 있는 폴더로 base_folder를 설정
         return ""
+
 
 class DDPMDataset(LightningDataModule):
     """
-    Combined class for CelebA dataset with custom integrity check and LightningDataModule.
+    Combined class for CelebA and MNIST datasets with dynamic transforms.
     """
     def __init__(self,
                  data_path: str,
@@ -33,46 +34,41 @@ class DDPMDataset(LightningDataModule):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
 
+        # Extract dataset name from data_path (e.g., mnist, celeba)
+        self.dataset_name = os.path.basename(os.path.normpath(data_path)).lower()
+
     def prepare_data(self) -> None:
-        # 다운로드를 비활성화하므로 추가 작업 불필요
-        pass
+            pass  
 
     def setup(self, stage: Optional[str] = None) -> None:
-        
-        # Define transformations
-        transform = transforms.Compose([
+        # Define dataset-specific transformations
+        if self.dataset_name == "mnist":
+            transform = transforms.Compose([
+                transforms.Resize(self.patch_size),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),  # Normalize to [-1, 1]
+            ])
+            if stage == 'fit' or stage is None:
+                self.train_dataset = MNIST(self.data_dir, train=True, transform=transform, download=True)
+                self.val_dataset = MNIST(self.data_dir, train=False, transform=transform, download=True)
+            if stage == 'test' or stage is None:
+                self.test_dataset = MNIST(self.data_dir, train=False, transform=transform, download=True)
+
+        elif self.dataset_name == "celeba":
+            transform = transforms.Compose([
                 transforms.RandomHorizontalFlip(),
                 transforms.CenterCrop(148),
                 transforms.Resize(self.patch_size),
                 transforms.ToTensor(),
-        ])
-        
+            ])
+            if stage == 'fit' or stage is None:
+                self.train_dataset = MyCelebA(self.data_dir, split='train', transform=transform, download=False)
+                self.val_dataset = MyCelebA(self.data_dir, split='valid', transform=transform, download=False)
+            if stage == 'test' or stage is None:
+                self.test_dataset = MyCelebA(self.data_dir, split='test', transform=transform, download=False)
 
-        # Dataset splits
-        if stage == 'fit' or stage is None:
-            self.train_dataset = MyCelebA(
-                self.data_dir,
-                split='train',
-                transform=transform,
-                download=False  # 다운로드 비활성화
-            )
-            self.val_dataset = MyCelebA(
-                self.data_dir,
-                split='valid',
-                transform=transform,
-                download=False  # 다운로드 비활성화
-            )
-        if stage == 'test' or stage is None:
-            self.test_dataset = MyCelebA(
-                self.data_dir,
-                split='test',
-                transform=transform,
-                download=False  # 다운로드 비활성화
-            )
-
-    def _check_integrity(self) -> bool:
-        # Override to skip the integrity check
-        return True
+        else:
+            raise ValueError(f"Unsupported dataset: {self.dataset_name}")
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
