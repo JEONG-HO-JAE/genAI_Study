@@ -1,4 +1,3 @@
-import math
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -19,9 +18,7 @@ class GaussianDDPM(pl.LightningModule):
                  width: int, 
                  height: int, 
                  input_channels: int, 
-                 logging_freq: int, 
-                 vlb: bool, 
-                 init_step_vlb: int):
+                 logging_freq: int, ):
         """
         :param denoiser_module: The nn which computes the denoise step i.e. q(x_{t-1} | x_t, t)
         :param T: the amount of noising steps
@@ -51,10 +48,7 @@ class GaussianDDPM(pl.LightningModule):
         self.width = width
         self.height = height
         self.logging_freq = logging_freq
-        self.vlb = vlb
-        self.init_step_vlb = init_step_vlb
         self.iteration = 0
-        self.init_step_vlb = max(1, self.init_step_vlb)
     
     def forward(self, x: torch.FloatTensor, 
                 t: int) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -83,9 +77,6 @@ class GaussianDDPM(pl.LightningModule):
         """
     
         X, _ = batch
-        with torch.no_grad():
-            # Map image values from [0, 1] to [-1, 1]
-            X = X * 2 - 1
             
         # Sample a random time step t from 0 to T-1 for each image in the batch
         t: torch.Tensor = torch.randint(0, self.T - 1, (X.shape[0],), device=X.device)
@@ -102,15 +93,7 @@ class GaussianDDPM(pl.LightningModule):
         noise_loss = self.mse(eps, pred_eps)
         loss = loss + noise_loss
         
-        # If using the VLB loss, compute the VLB loss and add it to the total loss
-        use_vlb = self.iteration >= self.init_step_vlb and self.vlb
-        if use_vlb:
-            loss_vlb = self.lambda_variational * self.variational_loss(x_t, X, pred_eps, v, t).mean(dim=0).sum()
-            loss = loss + loss_vlb
-
-        self.iteration += 1
-
-        return dict(loss=loss, noise_loss=noise_loss, vlb_loss=loss_vlb if use_vlb else None)
+        return dict(loss=loss, noise_loss=noise_loss)
     
     def validation_step(self,
                         batch: Tuple[torch.Tensor, torch.Tensor],
@@ -126,14 +109,10 @@ class GaussianDDPM(pl.LightningModule):
         eps = torch.randn_like(X)
         x_t = x0_to_xt(X, alpha_hat, eps)
         pred_eps, v = self.forward(x_t, t)
-        loss = eps_loss = self.mse(eps, pred_eps)
+        loss = self.mse(eps, pred_eps)
         
-        if self.iteration >= self.init_step_vlb and self.vlb:
-            loss_vlb = self.lambda_variational * self.variational_loss(x_t, X, pred_eps, v, t).mean(dim=0).sum()
-            loss = loss + loss_vlb
-
         # Return the loss as a dictionary
-        return dict(loss=loss, noise_loss=eps_loss, vlb_loss=loss_vlb if self.vlb else None)
+        return dict(loss=loss)
     
     def on_fit_start(self) -> None:
         self.alphas_hat: torch.FloatTensor = self.alphas_hat.to(self.device)
@@ -144,56 +123,7 @@ class GaussianDDPM(pl.LightningModule):
     def configure_optimizers(self):
         return self.opt_class(params=self.parameters())    
     
-    def variational_loss(self, x_t: torch.Tensor, x_0: torch.Tensor,
-                        model_noise: torch.Tensor, v: torch.Tensor, t: torch.Tensor):
-        """
-        Compute variational loss for time step t
-        
-        Parameters:
-            - x_t (torch.Tensor): the image at step t obtained with closed form formula from x_0
-            - x_0 (torch.Tensor): the input image
-            - model_noise (torch.Tensor): the unet predicted noise
-            - v (torch.Tensor): the unet predicted coefficients for the variance
-            - t (torch.Tensor): the time step
-        
-        Returns:
-            - vlb (torch.Tensor): the pixel-wise variational loss, with shape [batch_size, channels, width, height]
-        """
-        vlb = 0.0
-        t_eq_0 = (t == 0).reshape(-1, 1, 1, 1)
-        
-        # Compute variational loss for t=0 (i.e., first time step)
-        if torch.any(t_eq_0):
-            p = torch.distributions.Normal(mu_x_t(x_t, t, model_noise, self.alphas_hat, self.betas, self.alphas),
-                                        sigma_x_t(v, t, self.betas_hat, self.betas))
-            # Compute log probability of x_0 under the distribution p
-            # and add it to the variational lower bound
-            vlb += - p.log_prob(x_0) * t_eq_0.float()
-            
-        t_eq_last = (t == (self.T - 1)).reshape(-1, 1, 1, 1)
-        
-        # Compute variational loss for t=T-1 (i.e., last time step)
-        if torch.any(t_eq_last):
-            p = torch.distributions.Normal(0, 1)
-            q = torch.distributions.Normal(math.sqrt(self.alphas_hat[t]) * x_0, (1 - self.alphas_hat[t]))
-            # Compute KL divergence between distributions p and q
-            # and add it to the variational lower bound
-            vlb += torch.distributions.kl_divergence(q, p) * t_eq_last.float()
-            
-        # Compute variational loss for all other time steps
-        mu_hat = mu_hat_xt_x0(x_t, x_0, t, self.alphas_hat, self.alphas, self.betas)
-        sigma_hat = sigma_hat_xt_x0(t, self.betas_hat)
-        q = torch.distributions.Normal(mu_hat, sigma_hat)  # q(x_{t-1} | x_t, x_0)
-        mu = mu_x_t(x_t, t, model_noise, self.alphas_hat, self.betas, self.alphas).detach()
-        sigma = sigma_x_t(v, t, self.betas_hat, self.betas)
-        p = torch.distributions.Normal(mu, sigma)  # p(x_t | x_{t-1})
-        # Compute KL divergence between distributions p and q
-        # and add it to the variational lower bound
-        vlb += torch.distributions.kl_divergence(q, p) * (~t_eq_last).float() * (~t_eq_0).float()
-        
-        return vlb   
     
-    @torch.inference_mode()
     def generate(self, 
                  batch_size: Optional[int] = None, 
                  T: Optional[int] = None,
@@ -211,34 +141,33 @@ class GaussianDDPM(pl.LightningModule):
         if get_intermediate_steps:
             steps = []
         
-        X_noise = torch.randn(batch_size, self.input_channels, self.width, self.height,
+        X_noise = torch.randn(batch_size, self.input_channels, 
+                              self.width, self.height,
                               device=self.device)
-        beta_sqrt = torch.sqrt(self.betas)
         
-        
-        # T times sampling
-        for t in range(T-1, -1, -1):
-            if get_intermediate_steps:
+        with torch.no_grad():
+            # T times sampling
+            for t in range(T-1, -1, -1):
+                if get_intermediate_steps:
                     steps.append(X_noise)
-            t = torch.LongTensor([t]).to(self.device)
-            eps, v = self.denoiser_module(X_noise, t)
+                t = torch.LongTensor([t]).to(self.device)
+                eps, v = self.denoiser_module(X_noise, t)
                 
-            # if variational lower bound is present on the loss function hence v (the logit of variance) is trained
-            # else the variance is taked fixed as in the original DDPM paper
-            sigma = sigma_x_t(v, t, self.betas_hat, self.betas) if self.vlb else beta_sqrt[t].reshape(-1, 1, 1, 1)
-            z = torch.rand_like(X_noise)
+                # if variational lower bound is present on the loss function hence v (the logit of variance) is trained
+                # else the variance is taked fixed as in the original DDPM paper
+                sigma = sigma_x_t(v, t, self.betas_hat, self.betas) 
+                z = torch.rand_like(X_noise)
                 
-            if t == 0:
-                z.fill_(0)
+                if t == 0:
+                    z.fill_(0)
                     
-            alpha_t = self.alphas[t].reshape(-1, 1, 1, 1)
-            alpha_hat_t = self.alphas_hat[t].reshape(-1, 1, 1, 1)
+                alpha_t = self.alphas[t].reshape(-1, 1, 1, 1)
+                alpha_hat_t = self.alphas_hat[t].reshape(-1, 1, 1, 1)
                 
-            X_noise -= (1 - alpha_t) / torch.sqrt(1 - alpha_hat_t) * eps
-            X_noise /= torch.sqrt(alpha_t)
-            X_noise += sigma * z   
+                X_noise -= (1 - alpha_t) / torch.sqrt(1 - alpha_hat_t) * eps
+                X_noise /= torch.sqrt(alpha_t)
+                X_noise += sigma * z
 
-        X_noise = (X_noise + 1) / 2
         if get_intermediate_steps:
             steps.append(X_noise)
             return steps

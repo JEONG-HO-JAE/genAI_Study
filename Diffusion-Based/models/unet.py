@@ -4,19 +4,6 @@ from torch import nn
 from torch.nn import functional as F
 from .types_ import *
 
-def positional_embedding_vector(t: int, dim: int) -> torch.FloatTensor:
-    """
-
-    Args:
-        t (int): time step
-        dim (int): embedding size
-
-    Returns: the transformer sinusoidal positional embedding vector
-
-    """
-    two_i = 2 * torch.arange(0, dim)
-    return torch.sin(t / torch.pow(10_000, two_i / dim)).unsqueeze(0)
-
 def timestep_embedding(timesteps: torch.Tensor, dim: int, max_period=10000):
     """
     Create sinusoidal timestep embeddings.

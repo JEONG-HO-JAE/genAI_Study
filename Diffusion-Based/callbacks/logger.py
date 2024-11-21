@@ -11,10 +11,10 @@ class LoggerCallback(Callback):
 
     def on_train_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs: dict, batch: Any, batch_idx: int) -> None:
         if trainer.global_step % self.freq_train == 0:
-            pl_module.log("train/loss", outputs["loss"], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            pl_module.log("train/loss", outputs["loss"], on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def on_validation_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs: dict, batch: Any, batch_idx: int) -> None:
-        pl_module.log("val/loss", outputs["loss"], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        pl_module.log("val/loss", outputs["loss"], on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def on_validation_epoch_start(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
         gen_images = pl_module.generate(batch_size=self.num_sampling_images) # Generate images
