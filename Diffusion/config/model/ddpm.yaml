@@ -1,0 +1,7 @@
+_target_: models.ddpm.GaussianDDPM
+T: ${noise_steps}
+sampling_timesteps: ${noise_steps}
+denoiser_module: ${denoiser_module}
+width: ${dataset.width}
+height: ${dataset.height}
+input_channels: ${dataset.channels}

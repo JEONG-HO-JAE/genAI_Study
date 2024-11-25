@@ -1,0 +1,10 @@
+_target_: data.datasets.DDPMDataset
+data_path: /home/work/reality/hojae/genAI/data/celeba
+train_batch_size: 64
+val_batch_size:  64
+patch_size: 128
+width: 128
+height : 128
+channels: 3
+num_workers: 4
+pin_memory: True
