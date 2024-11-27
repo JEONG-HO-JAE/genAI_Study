@@ -1,5 +1,5 @@
 _target_: models.unet.Unet
 dim: 32
-channels : 3
-self_condition: True
+channels : ${dataset.channels}
+self_condition: False
 flash_attn: False
