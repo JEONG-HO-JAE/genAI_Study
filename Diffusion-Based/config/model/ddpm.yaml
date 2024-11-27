@@ -1,8 +1,0 @@
-_target_: models.ddpm.GaussianDDPM
-T: ${noise_steps}
-lambda_variational: 0.0001
-denoiser_module: ${denoiser_module}
-width: ${dataset.width}
-height: ${dataset.height}
-logging_freq: 1_000
-input_channels: ${dataset.channels}
