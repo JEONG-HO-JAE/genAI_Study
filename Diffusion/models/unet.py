@@ -18,7 +18,6 @@ from collections import namedtuple
 # constants
 
 AttentionConfig = namedtuple('AttentionConfig', ['enable_flash', 'enable_math', 'enable_mem_efficient'])
-ModelPrediction =  namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 
 # helpers
 
@@ -471,7 +470,8 @@ class Unet(Module):
         assert all([divisible_by(d, self.downsample_factor) for d in x.shape[-2:]]), f'your input dimensions {x.shape[-2:]} need to be divisible by {self.downsample_factor}, given the unet'
 
         if self.self_condition:
-            x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
+            if x_self_cond is None:
+                x_self_cond = torch.zeros_like(x)
             x = torch.cat((x_self_cond, x), dim = 1)
 
         x = self.init_conv(x)
