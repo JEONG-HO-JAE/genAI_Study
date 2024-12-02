@@ -57,7 +57,8 @@ def train(config: DictConfig):
                                      auto_insert_metric_name=False, 
                                      save_last=True)
     ddpm_logger = LoggerCallback(config.freq_logging, 
-                                 config.num_sampling_images) 
+                                 config.num_sampling_images,
+                                 config.sampling_timesteps) 
     callbacks = [ckpt_callback, ddpm_logger]
     
     if config.early_stop:

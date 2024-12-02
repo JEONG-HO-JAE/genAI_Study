@@ -3,17 +3,18 @@ defaults:
   - denoiser_module: unet
   - model: ddpm
   - scheduler: linear
-  - dataset: mnist
+  - dataset: afhq
   - optimizer: adam_ddpm
 
 
 noise_steps: 1000  # T
+sampling_timesteps: 200
 ckpt: null  # path to checkpoint
 seed: 1337  # random seed
 
 max_epochs: 50
 accelerator: gpu  # from pytorch-lightning, the hardware platform used to train the neural network
-devices: 1  # the devices to use in a given hardware platform (see argument above) 
+devices: 2  # the devices to use in a given hardware platform (see argument above) 
 gradient_clip_val: 0.0  # gradient clip value - set to 0.0 to disable
 gradient_clip_algorithm: norm  # gradient clip algorithm - either 'norm' or 'value'
 
