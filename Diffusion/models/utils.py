@@ -18,7 +18,7 @@ def x0_to_xt(x_0: torch.Tensor,
     return torch.sqrt(alpha_hat_t) * x_0 + torch.sqrt(1 - alpha_hat_t) * eps
 
 def xt_to_x0(x_t: torch.Tensor, 
-             alpha_hat_t: torch.Tensor, 
+             alpha_t: torch.Tensor, 
              eps: Optional[torch.Tensor] = None) -> torch.Tensor:
     
-    return (x_t - torch.sqrt(1-alpha_hat_t) * eps) / torch.sqrt(alpha_hat_t)
+    return (x_t - torch.sqrt(1-alpha_t) * eps) / torch.sqrt(alpha_t)
