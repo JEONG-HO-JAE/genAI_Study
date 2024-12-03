@@ -1,0 +1,4 @@
+gif_config:
+  image_directory: "/home/work/reality/hojae/genAI/Diffusion/saved_models/2024_12_03_00_10/gen_images"
+  output_gif: "mnist.gif"
+  duration: 400  # 밀리초 단위
