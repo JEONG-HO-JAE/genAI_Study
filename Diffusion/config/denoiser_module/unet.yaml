@@ -1,5 +1,0 @@
-_target_: models.unet.Unet
-dim : 32
-channels : ${dataset.channels}
-self_condition: False
-flash_attn: False
