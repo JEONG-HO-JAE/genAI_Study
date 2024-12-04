@@ -1,9 +1,9 @@
 import os
+import re
 import sys
 from pathlib import Path
 
 import hydra
-import omegaconf
 from omegaconf import DictConfig, OmegaConf
 
 import pytorch_lightning as pl
@@ -17,15 +17,21 @@ def train(config: DictConfig):
     
     # Initialize checkpoint
     ckpt = None
+    last_epoch_value = -1
     if config.ckpt is not None:
         os.chdir(os.path.dirname(config.ckpt))
         assert os.path.exists(config.ckpt)
         ckpt = config.ckpt
         config = OmegaConf.load(os.path.join(os.path.dirname(ckpt), 'config.yaml'))
         
-    # Save the updated configuration to a file called 'config.yaml'
-    with open('config.yaml', 'w') as f:
-        omegaconf.OmegaConf.save(config, f)
+        # Get last epoch number
+        asset_dir = os.path.join(os.path.dirname(ckpt), 'gen_images')
+        asset_files = os.listdir(asset_dir)
+        match = re.search(r'epoch=(\d+)', asset_files[-1])
+        if match:
+            last_epoch_value = int(match.group(1))
+        else:
+            print("No epoch information found in the file name.")
         
     # Directory setup
     Path.cwd().joinpath('gen_images').mkdir(parents=True, exist_ok=True)
@@ -34,14 +40,20 @@ def train(config: DictConfig):
     denoiser_module = hydra.utils.instantiate(config.denoiser_module)
     scheduler = hydra.utils.instantiate(config.scheduler)
     opt = hydra.utils.instantiate(config.optimizer)
+
     model: pl.LightningModule = hydra.utils.instantiate(config.model,
                                                         denoiser_module=denoiser_module,
                                                         opt=opt,
                                                         variance_scheduler=scheduler)
-    
+    model_class = hydra.utils.get_class(config.model._target_)
     # Load the model weights from the checkpoint
+    # 체크포인트에서 모델 복원
     if ckpt is not None:
-        model.load_from_checkpoint(ckpt, variance_scheduler=scheduler)
+        print(f"Loading model from checkpoint: {ckpt}")
+        model = model_class.load_from_checkpoint(ckpt, 
+                                                denoiser_module=denoiser_module,
+                                                opt=opt, 
+                                                variance_scheduler=scheduler)
         # Save the hyperparameters of the model to a file called 'hparams.yaml'
     model.save_hyperparameters(OmegaConf.to_object(config)['model'])
 
@@ -57,7 +69,8 @@ def train(config: DictConfig):
                                      save_last=True)
     ddpm_logger = LoggerCallback(config.freq_logging, 
                                  config.num_sampling_images,
-                                 config.sampling_timesteps) 
+                                 config.sampling_timesteps,
+                                 last_epoch_value) 
     callbacks = [ckpt_callback, ddpm_logger]
     
     if config.early_stop:
@@ -70,7 +83,8 @@ def train(config: DictConfig):
                          max_epochs=config.max_epochs,
                          callbacks=callbacks, 
                          accelerator=config.accelerator, 
-                         devices=config.devices, 
+                         devices=config.devices,
+                         precision=16, # Mixed Precision
                          gradient_clip_val=config.gradient_clip_val, 
                          gradient_clip_algorithm=config.gradient_clip_algorithm)
     
