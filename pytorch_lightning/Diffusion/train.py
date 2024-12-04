@@ -49,7 +49,6 @@ def train(config: DictConfig):
     data.setup()
     train_dl = data.train_dataloader()
     val_dl = data.val_dataloader()
-    
     # Create a ModelCheckpoint callback that saves the model weights to disk during training
     ckpt_callback = ModelCheckpoint('./', 
                                     'epoch={epoch}-valid_loss={val/loss_epoch}', 
@@ -66,6 +65,7 @@ def train(config: DictConfig):
                                        min_delta=config.min_delta, 
                                        patience=config.patience))
     
+    
     trainer = pl.Trainer(num_sanity_val_steps=0,  
                          max_epochs=config.max_epochs,
                          callbacks=callbacks, 
@@ -73,6 +73,7 @@ def train(config: DictConfig):
                          devices=config.devices, 
                          gradient_clip_val=config.gradient_clip_val, 
                          gradient_clip_algorithm=config.gradient_clip_algorithm)
+    
     trainer.fit(model, train_dl, val_dl)
 
     
