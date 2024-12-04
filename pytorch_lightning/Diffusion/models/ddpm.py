@@ -140,13 +140,12 @@ class GaussianDDPM(pl.LightningModule):
                     )
                     c = torch.sqrt(1 - alpha_hat_t_next - sigma**2)
 
-                    # noise = torch.sqrt(alpha_hat_t_next) * x0 + c * pred_eps + sigma * torch.randn_like(noise)
                     # 복원된 x_0 계산
                     x_start = (1 / torch.sqrt(alpha_hat_t)) * noise - \
                             (torch.sqrt(1 - alpha_hat_t) / torch.sqrt(alpha_hat_t)) * pred_eps
                     # 내가 잘못 작성한 코드 부분
                     # x0 = 1 / torch.sqrt(alpha_hat_t) * noise - 1 / torch.sqrt(1 - alpha_hat_t) * pred_eps
-                    
+                    # noise = torch.sqrt(alpha_hat_t_next) * x0 + c * pred_eps + sigma * torch.randn_like(noise)
                     noise = torch.sqrt(alpha_hat_t_next) * x_start + c * pred_eps + sigma * torch.randn_like(noise) if time_next >= 0 else x_start 
 
                     
