@@ -32,11 +32,13 @@ class GaussianDDPM(pl.LightningModule):
         self.opt_class = opt
         self.T = T
         self.input_channels = input_channels
-        self.self_condition = self.denoiser_module.self_condition
+        # self.self_condition = self.denoiser_module.self_condition
         self.sampling_timesteps = sampling_timesteps
         self.width = width
         self.height = height
         
+        self.mean = [0.5, 0.5, 0.5]
+        self.std = [0.5, 0.5, 0.5]
         self.var_scheduler = variance_scheduler
         self.register_buffer('alphas_hat', self.var_scheduler.get_alpha_hat())
         self.register_buffer('alphas', self.var_scheduler.get_alphas())
@@ -59,6 +61,20 @@ class GaussianDDPM(pl.LightningModule):
             - self.sqrt_recipm1_alphas_cumprod[t].reshape(-1, 1, 1, 1) * noise
         )
         
+    def unnormalize(self, img_tensor, mean, std):
+        """
+        정규화된 이미지 텐서를 원래의 값으로 역정규화.
+        Args:
+            img_tensor (torch.Tensor): 정규화된 이미지 텐서
+            mean (list): 정규화에 사용된 평균
+            std (list): 정규화에 사용된 표준편차
+        Returns:
+            torch.Tensor: 역정규화된 이미지 텐서
+        """
+        mean = torch.tensor(mean, device=img_tensor.device).view(1, -1, 1, 1)
+        std = torch.tensor(std, device=img_tensor.device).view(1, -1, 1, 1)
+        return img_tensor * std + mean
+    
     def forward(self, x: torch.FloatTensor, 
                 t: int,
                 x_self_cond) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -74,12 +90,12 @@ class GaussianDDPM(pl.LightningModule):
         x_t = x0_to_xt(X, alpha_hat, eps)
         
         x_self_cond = None
-        if self.self_condition and random() < 0.5:
-            with torch.inference_mode():
-                model_output = self.forward(x_t, t, x_self_cond)
-                x_start = self.predict_start_from_noise(x_t, t, model_output)
-                x_self_cond = x_start
-                x_self_cond.detach_()
+        # if self.self_condition and random() < 0.5:
+        #     with torch.inference_mode():
+        #         model_output = self.forward(x_t, t, x_self_cond)
+        #         x_start = self.predict_start_from_noise(x_t, t, model_output)
+        #         x_self_cond = x_start
+        #         x_self_cond.detach_()
         
         pred_eps = self.forward(x_t, t, x_self_cond)
         
@@ -166,6 +182,10 @@ class GaussianDDPM(pl.LightningModule):
                     # print(sigma-sigma_2)
                     noise = 1 / (torch.sqrt(alpha_t)) * \
                         (noise - ((1 - alpha_t) / torch.sqrt(1 - alpha_hat_t)) * eps) + sigma * z
-                
-        noise = (noise + 1) / 2 
-        return noise 
+              
+        # # 복원된 이미지 역정규화
+        # noise = self.unnormalize(noise, self.mean, self.std)
+        
+        X_noise = (X_noise + 1) / 2
+
+        return noise
