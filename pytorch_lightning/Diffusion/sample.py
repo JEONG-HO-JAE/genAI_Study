@@ -46,21 +46,21 @@ def sample(sampler_config):
     output_dir = os.path.join(sampler_config["model_dir"], "generated_images")
     save_generated_images(generated_images, output_dir)
     
-    # 정사각형 grid 크기 계산
-    grid_size = int(math.ceil(math.sqrt(batch_size)))
-    fig, axs = plt.subplots(grid_size, grid_size, figsize=(15, 15))
+    # # 정사각형 grid 크기 계산
+    # grid_size = int(math.ceil(math.sqrt(batch_size)))
+    # fig, axs = plt.subplots(grid_size, grid_size, figsize=(15, 15))
 
-    for i in range(grid_size):
-        for j in range(grid_size):
-            idx = i * grid_size + j  # 이미지 인덱스
-            if idx < batch_size:  # 배치 크기 초과 방지
-                axs[i, j].imshow(generated_images[idx].permute(1, 2, 0).cpu().numpy(), cmap="gray")
-                axs[i, j].axis("off")
-            else:
-                axs[i, j].axis("off")  # 초과한 subplot은 비활성화
+    # for i in range(grid_size):
+    #     for j in range(grid_size):
+    #         idx = i * grid_size + j  # 이미지 인덱스
+    #         if idx < batch_size:  # 배치 크기 초과 방지
+    #             axs[i, j].imshow(generated_images[idx].permute(1, 2, 0).cpu().numpy(), cmap="gray")
+    #             axs[i, j].axis("off")
+    #         else:
+    #             axs[i, j].axis("off")  # 초과한 subplot은 비활성화
 
-    plt.tight_layout()
-    plt.show()
+    # plt.tight_layout()
+    # plt.show()
     
     
 # 실행
