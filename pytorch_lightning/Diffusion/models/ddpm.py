@@ -186,6 +186,6 @@ class GaussianDDPM(pl.LightningModule):
         # # 복원된 이미지 역정규화
         # noise = self.unnormalize(noise, self.mean, self.std)
         
-        X_noise = (X_noise + 1) / 2
+        noise = (noise + 1) / 2
 
         return noise
