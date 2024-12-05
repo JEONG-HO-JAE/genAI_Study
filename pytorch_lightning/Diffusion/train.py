@@ -67,7 +67,7 @@ def train(config: DictConfig):
                                     'epoch={epoch}-valid_loss={val/loss_epoch}', 
                                      monitor='val/loss_epoch', 
                                      auto_insert_metric_name=False, 
-                                     save_last=False)
+                                     save_last=True)
     ddpm_logger = LoggerCallback(config.freq_logging, 
                                  config.num_sampling_images,
                                  config.sampling_timesteps,
