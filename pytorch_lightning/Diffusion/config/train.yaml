@@ -1,20 +1,20 @@
 defaults:
   - _self_
-  - denoiser_module: unet
+  - denoiser_module: unet_2
   - model: ddpm
   - scheduler: linear
-  - dataset: mnist
+  - dataset: flower
   - optimizer: adam_ddpm
 
 
 noise_steps: 1000  # T
-sampling_timesteps: 200
-ckpt: null  # path to checkpoint
+sampling_timesteps: 100
+ckpt: null
 seed: 1337  # random seed
 
-max_epochs: 50
+max_epochs: 100
 accelerator: gpu  # from pytorch-lightning, the hardware platform used to train the neural network
-devices: 2   # the devices to use in a given hardware platform (see argument above) 
+devices: 1   # the devices to use in a given hardware platform (see argument above) 
 gradient_clip_val: 0.0  # gradient clip value - set to 0.0 to disable
 gradient_clip_algorithm: norm  # gradient clip algorithm - either 'norm' or 'value'
 
@@ -22,7 +22,8 @@ gradient_clip_algorithm: norm  # gradient clip algorithm - either 'norm' or 'val
 early_stop: true  # stop training if the validation loss does not improve for patience epochs
 patience: 10  # early stopping patience; set to -1 to disable
 min_delta: 0.0  # minimum change in the monitored quantity to qualify as an improvement, i.e. an absolute change of less than min_delta, will count as no improvement.
-
+ema: true  # exponential moving average
+ema_decay: 0.99  # exponential moving average decay rate
 # Log
 freq_logging: 10  # frequency of logging
 num_sampling_images: 64  

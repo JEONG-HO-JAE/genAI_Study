@@ -184,8 +184,8 @@ class GaussianDDPM(pl.LightningModule):
                         (noise - ((1 - alpha_t) / torch.sqrt(1 - alpha_hat_t)) * eps) + sigma * z
               
         # # 복원된 이미지 역정규화
-        # noise = self.unnormalize(noise, self.mean, self.std)
+        noise = self.unnormalize(noise, self.mean, self.std)
         
-        noise = (noise + 1) / 2
+        # noise = (noise + 1) / 2
 
         return noise
