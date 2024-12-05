@@ -9,6 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from callbacks.logger import LoggerCallback
+from callbacks.ema import EMA
 from utils.paths import MODEL
 
 @hydra.main(config_path="config", config_name="train.yaml")
@@ -73,6 +74,9 @@ def train(config: DictConfig):
                                  last_epoch_value) 
     callbacks = [ckpt_callback, ddpm_logger]
     
+    if config.ema:
+        # Create an Expontential Moving Average callback
+        callbacks.append(EMA(config.ema_decay)) 
     if config.early_stop:
         callbacks.append(EarlyStopping('val/loss_epoch', 
                                        min_delta=config.min_delta, 
