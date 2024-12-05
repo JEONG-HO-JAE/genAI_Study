@@ -75,6 +75,10 @@ class GaussianDDPM(pl.LightningModule):
         std = torch.tensor(std, device=img_tensor.device).view(1, -1, 1, 1)
         return img_tensor * std + mean
     
+    def clip_image(self, tensor, min_value=0.0, max_value=1.0):
+        return torch.clamp(tensor, min=min_value, max=max_value)
+
+    
     def forward(self, x: torch.FloatTensor, 
                 t: int,
                 x_self_cond) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -185,7 +189,7 @@ class GaussianDDPM(pl.LightningModule):
               
         # # 복원된 이미지 역정규화
         noise = self.unnormalize(noise, self.mean, self.std)
-        
+        noise = self.clip_image(noise)
         # noise = (noise + 1) / 2
 
         return noise
