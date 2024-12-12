@@ -7,6 +7,7 @@ import torch as th
 import torch.distributed as dist
 from torch.nn.parallel.distributed import DistributedDataParallel as DDP
 from torch.optim import AdamW
+from torch.optim.lr_scheduler import LambdaLR
 
 from . import dist_util, logger
 from .fp16_util import MixedPrecisionTrainer
@@ -38,6 +39,7 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
+        warmup_steps=0,
     ):
         self.model = model
         self.diffusion = diffusion
@@ -58,7 +60,8 @@ class TrainLoop:
         self.schedule_sampler = schedule_sampler or UniformSampler(diffusion)
         self.weight_decay = weight_decay
         self.lr_anneal_steps = lr_anneal_steps
-
+        self.warmup_steps = warmup_steps 
+        
         self.step = 0
         self.resume_step = 0
         self.global_batch = self.batch_size * dist.get_world_size()
@@ -71,10 +74,13 @@ class TrainLoop:
             use_fp16=self.use_fp16,
             fp16_scale_growth=fp16_scale_growth,
         )
-
+        
         self.opt = AdamW(
             self.mp_trainer.master_params, lr=self.lr, weight_decay=self.weight_decay
         )
+        # Warmup 및 annealing을 위한 학습률 스케줄러 설정
+        self.lr_scheduler = LambdaLR(self.opt, lr_lambda=self._lr_lambda)
+        
         if self.resume_step:
             self._load_optimizer_state()
             # Model was resumed, either due to a restart or a checkpoint
@@ -174,7 +180,7 @@ class TrainLoop:
         took_step = self.mp_trainer.optimize(self.opt)
         if took_step:
             self._update_ema()
-        self._anneal_lr()
+        self.lr_scheduler.step() 
         self.log_step()
 
     def forward_backward(self, batch, cond):
@@ -217,6 +223,20 @@ class TrainLoop:
         for rate, params in zip(self.ema_rate, self.ema_params):
             update_ema(params, self.mp_trainer.master_params, rate=rate)
 
+    def _lr_lambda(self, step):
+        """
+        Warmup + Anneal + 유지 스케줄링 함수
+        """
+        base_lr = self.lr  # Anneal 이후 유지할 기본 학습률
+        if step < self.warmup_steps:  # Warmup 단계
+            return step / self.warmup_steps
+        elif step < self.warmup_steps + self.lr_anneal_steps:  # Anneal 단계
+            anneal_start = self.warmup_steps
+            frac_done = (step - anneal_start) / self.lr_anneal_steps
+            return 1.0 - frac_done  # Annealing에서 선형적으로 감소
+        else:  # Anneal 이후
+            return base_lr / self.lr  # 기본 학습률 유지
+    
     def _anneal_lr(self):
         if not self.lr_anneal_steps:
             return
@@ -226,8 +246,11 @@ class TrainLoop:
             param_group["lr"] = lr
 
     def log_step(self):
+        current_lr = self.opt.param_groups[0]["lr"]
+        
         logger.logkv("step", self.step + self.resume_step)
         logger.logkv("samples", (self.step + self.resume_step + 1) * self.global_batch)
+        logger.logkv("learning_rate", current_lr)
 
     def save(self):
         def save_checkpoint(rate, params):

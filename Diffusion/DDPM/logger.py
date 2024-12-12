@@ -5,7 +5,6 @@ https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf97414399
 
 import os
 import sys
-import shutil
 import os.path as osp
 import json
 import time
@@ -14,6 +13,7 @@ import tempfile
 import warnings
 from collections import defaultdict
 from contextlib import contextmanager
+import tensorflow as tf
 
 DEBUG = 10
 INFO = 20
@@ -147,6 +147,46 @@ class CSVOutputFormat(KVWriter):
         self.file.close()
 
 
+# class TensorBoardOutputFormat(KVWriter):
+#     """
+#     Dumps key/value pairs into TensorBoard's numeric format.
+#     """
+
+#     def __init__(self, dir):
+#         os.makedirs(dir, exist_ok=True)
+#         self.dir = dir
+#         self.step = 1
+#         prefix = "events"
+#         path = osp.join(osp.abspath(dir), prefix)
+#         import tensorflow as tf
+#         from tensorflow.python import pywrap_tensorflow
+#         from tensorflow.core.util import event_pb2
+#         from tensorflow.python.util import compat
+
+#         self.tf = tf
+#         self.event_pb2 = event_pb2
+#         self.pywrap_tensorflow = pywrap_tensorflow
+#         self.writer = pywrap_tensorflow.EventsWriter(compat.as_bytes(path))
+
+#     def writekvs(self, kvs):
+#         def summary_val(k, v):
+#             kwargs = {"tag": k, "simple_value": float(v)}
+#             return self.tf.Summary.Value(**kwargs)
+
+#         summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
+#         event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
+#         event.step = (
+#             self.step
+#         )  # is there any reason why you'd want to specify the step?
+#         self.writer.WriteEvent(event)
+#         self.writer.Flush()
+#         self.step += 1
+
+#     def close(self):
+#         if self.writer:
+#             self.writer.Close()
+#             self.writer = None
+
 class TensorBoardOutputFormat(KVWriter):
     """
     Dumps key/value pairs into TensorBoard's numeric format.
@@ -156,38 +196,18 @@ class TensorBoardOutputFormat(KVWriter):
         os.makedirs(dir, exist_ok=True)
         self.dir = dir
         self.step = 1
-        prefix = "events"
-        path = osp.join(osp.abspath(dir), prefix)
-        import tensorflow as tf
-        from tensorflow.python import pywrap_tensorflow
-        from tensorflow.core.util import event_pb2
-        from tensorflow.python.util import compat
-
-        self.tf = tf
-        self.event_pb2 = event_pb2
-        self.pywrap_tensorflow = pywrap_tensorflow
-        self.writer = pywrap_tensorflow.EventsWriter(compat.as_bytes(path))
+        self.writer = tf.summary.create_file_writer(dir)  # TensorFlow 2.x API
 
     def writekvs(self, kvs):
-        def summary_val(k, v):
-            kwargs = {"tag": k, "simple_value": float(v)}
-            return self.tf.Summary.Value(**kwargs)
-
-        summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
-        event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
-        event.step = (
-            self.step
-        )  # is there any reason why you'd want to specify the step?
-        self.writer.WriteEvent(event)
-        self.writer.Flush()
+        with self.writer.as_default():  # 이벤트 기록 시작
+            for k, v in kvs.items():
+                tf.summary.scalar(k, v, step=self.step)
         self.step += 1
 
     def close(self):
-        if self.writer:
-            self.writer.Close()
-            self.writer = None
-
-
+        self.writer.close()
+        
+        
 def make_output_format(format, ev_dir, log_suffix=""):
     os.makedirs(ev_dir, exist_ok=True)
     if format == "stdout":
@@ -461,7 +481,7 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=""):
     if format_strs is None:
         if rank == 0:
             # format_strs = os.getenv("OPENAI_LOG_FORMAT", "stdout,log,csv").split(",")
-            format_strs = os.getenv("OPENAI_LOG_FORMAT", "stdout,log,csv").split(",")
+            format_strs = os.getenv("OPENAI_LOG_FORMAT", "stdout,log,csv,tensorboard").split(",")
         else:
             format_strs = os.getenv("OPENAI_LOG_FORMAT_MPI", "log").split(",")
     format_strs = filter(None, format_strs)

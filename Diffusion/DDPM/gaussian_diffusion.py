@@ -138,6 +138,7 @@ class GaussianDiffusion:
         self.num_timesteps = int(betas.shape[0])
 
         alphas = 1.0 - betas
+        
         self.alphas_cumprod = np.cumprod(alphas, axis=0)
         self.alphas_cumprod_prev = np.append(1.0, self.alphas_cumprod[:-1])
         self.alphas_cumprod_next = np.append(self.alphas_cumprod[1:], 0.0)
@@ -512,13 +513,12 @@ class GaussianDiffusion:
         else:
             img = th.randn(*shape, device=device)
         indices = list(range(self.num_timesteps))[::-1]
-
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
 
             indices = tqdm(indices)
-
+        
         for i in indices:
             t = th.tensor([i] * shape[0], device=device)
             with th.no_grad():
@@ -558,6 +558,7 @@ class GaussianDiffusion:
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
         )
+    
         if cond_fn is not None:
             out = self.condition_score(cond_fn, out, x, t, model_kwargs=model_kwargs)
 
@@ -684,7 +685,7 @@ class GaussianDiffusion:
         else:
             img = th.randn(*shape, device=device)
         indices = list(range(self.num_timesteps))[::-1]
-
+        print(len(self.betas))
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
