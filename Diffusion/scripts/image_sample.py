@@ -10,6 +10,7 @@ import numpy as np
 import torch as th
 import torch.distributed as dist
 
+from DDPM.image_datasets import load_data
 from DDPM import dist_util, logger
 from DDPM.script_util import (
     NUM_CLASSES,
@@ -35,7 +36,33 @@ def main():
     )
     model.to(dist_util.dev())
     model.eval()
+    
+    logger.log("creating data loader...")
+    data = load_data(
+        data_dir=args.data_dir,
+        batch_size=args.batch_size,
+        image_size=args.image_size,
+        class_cond=args.class_cond,
+    )
+    batch = next(data)
+    images, _ = batch
+    images = images.to(dist_util.dev()) 
 
+    if isinstance(args.timestep_respacing, str):
+        if args.timestep_respacing.startswith("ddim"):
+            desired_count = int(args.timestep_respacing[len("ddim") :])
+            print(desired_count)
+        else:
+            desired_count = int(args.timestep_respacing)
+            print(desired_count)  
+
+    if args.use_xT is True:
+        timesteps = th.tensor(desired_count-1, device=images.device) 
+        x_T = diffusion.q_sample(images, timesteps)
+    else:
+        x_T = None
+    print(x_T)  
+      
     logger.log("sampling...")
     all_images = []
     all_labels = []
@@ -52,6 +79,7 @@ def main():
         sample = sample_fn(
             model,
             (args.batch_size, 3, args.image_size, args.image_size),
+            x_T,
             clip_denoised=args.clip_denoised,
             model_kwargs=model_kwargs,
         )
@@ -90,11 +118,13 @@ def main():
 
 def create_argparser():
     defaults = dict(
+        data_dir="",
         clip_denoised=True,
         num_samples=64,
         batch_size=64,
         use_ddim=False,
         model_path="",
+        use_xT=False,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
