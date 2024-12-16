@@ -1,0 +1,9 @@
+_target_: diffusion.gaussain_diffusion.GaussianDiffusion
+noise_steps: 1000
+sigma_small: False
+noise_schedule: linear
+use_kl: False
+predict_xstart: False
+rescale_timesteps: False
+rescale_learned_sigmas: False
+timestep_respacing: ""

@@ -1,0 +1,7 @@
+_target_: diffusion.unet.UNetModel
+image_size: ${dataset.image_size}
+num_channels: 128
+num_res_blocks: 2
+dropout: 0.0
+use_checkpoint: False
+use_fp16: False

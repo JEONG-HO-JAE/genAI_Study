@@ -29,3 +29,8 @@ class LoggerCallback(Callback):
         gen_images = pl_module.sample(batch_size=self.num_sampling_images, sampling_timesteps=self.sampling_timesteps) # Generate images
         gen_images = torchvision.utils.make_grid(gen_images)  # Convert to grid
         torchvision.utils.save_image(gen_images, f'gen_images/epoch={pl_module.current_epoch + self.last_epoch_value }.png')  # Save the images
+        
+    # def on_epoch_end(self):
+    #     for param_group in self.optimizers().param_groups:
+    #         current_lr = param_group['lr']
+    #         print(f"Current learning rate: {current_lr}")
