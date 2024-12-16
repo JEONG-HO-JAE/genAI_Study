@@ -1,3 +1,0 @@
-model_dir : /home/work/reality/hojae/genAI/pytorch_lightning/Diffusion/saved_models/mnist_64_1_32_32
-sampling_timesteps : 100
-batch_size: 16

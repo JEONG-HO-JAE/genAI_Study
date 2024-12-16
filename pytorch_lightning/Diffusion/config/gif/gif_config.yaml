@@ -1,4 +1,0 @@
-gif_config:
-  image_directory: "/home/work/reality/hojae/genAI/pytorch_lightning/Diffusion/saved_models/2024_12_03_06_55/gen_images"
-  output_gif: "asset/mnist.gif"
-  duration: 300  # 밀리초 단위
