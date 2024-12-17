@@ -676,7 +676,7 @@ class GaussianDiffusion:
 
         Same usage as p_sample_loop_progressive().
         """
-        print("DDIM.......")
+        print("==================DDIM Sampling==================")
         if device is None:
             device = next(model.parameters()).device
         assert isinstance(shape, (tuple, list))
@@ -685,7 +685,6 @@ class GaussianDiffusion:
         else:
             img = th.randn(*shape, device=device)
         indices = list(range(self.num_timesteps))[::-1]
-        print(len(self.betas))
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
