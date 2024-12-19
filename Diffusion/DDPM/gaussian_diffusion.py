@@ -444,6 +444,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
+        timestep=None,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
@@ -475,6 +476,7 @@ class GaussianDiffusion:
             model,
             shape,
             noise=noise,
+            timestep=timestep,
             clip_denoised=clip_denoised,
             denoised_fn=denoised_fn,
             cond_fn=cond_fn,
@@ -490,6 +492,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
+        timestep=None,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
@@ -512,7 +515,10 @@ class GaussianDiffusion:
             img = noise
         else:
             img = th.randn(*shape, device=device)
-        indices = list(range(self.num_timesteps))[::-1]
+        if timestep is not None:
+            indices = list(range(int(timestep)))[::-1]
+        else:
+            indices = list(range(self.num_timesteps))[::-1]
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
@@ -628,6 +634,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
+        timestep=None,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
@@ -646,6 +653,7 @@ class GaussianDiffusion:
             model,
             shape,
             noise=noise,
+            timestep=timestep,
             clip_denoised=clip_denoised,
             denoised_fn=denoised_fn,
             cond_fn=cond_fn,
@@ -662,6 +670,7 @@ class GaussianDiffusion:
         model,
         shape,
         noise=None,
+        timestep=None,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
@@ -684,7 +693,10 @@ class GaussianDiffusion:
             img = noise
         else:
             img = th.randn(*shape, device=device)
-        indices = list(range(self.num_timesteps))[::-1]
+        if timestep is not None:
+            indices = list(range(int(timestep)))[::-1]
+        else:
+            indices = list(range(self.num_timesteps))[::-1]
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
