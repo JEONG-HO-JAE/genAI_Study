@@ -151,10 +151,14 @@ class TrainLoop:
         )
         if bf.exists(opt_checkpoint):
             logger.log(f"loading optimizer state from checkpoint: {opt_checkpoint}")
-            state_dict = dist_util.load_state_dict(
-                opt_checkpoint, map_location=dist_util.dev()
-            )
-            self.opt.load_state_dict(state_dict)
+            try:
+                state_dict = dist_util.load_state_dict(
+                    opt_checkpoint, map_location=dist_util.dev()
+                )
+                self.opt.load_state_dict(state_dict)
+            except ValueError as e:
+                logger.warn(f"Optimizer state could not be loaded: {e}")
+                logger.warn("Starting with a freshly initialized optimizer.")
 
     def run_loop(self):
         while (
