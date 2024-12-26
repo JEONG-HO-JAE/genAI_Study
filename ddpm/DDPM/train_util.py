@@ -39,6 +39,7 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
+        max_steps=0,
         warmup_steps=0,
     ):
         self.model = model
@@ -63,6 +64,7 @@ class TrainLoop:
         self.warmup_steps = warmup_steps 
         
         self.step = 0
+        self.max_steps = max_steps
         self.resume_step = 0
         self.global_batch = self.batch_size * dist.get_world_size()
 
@@ -160,11 +162,27 @@ class TrainLoop:
                 logger.warn(f"Optimizer state could not be loaded: {e}")
                 logger.warn("Starting with a freshly initialized optimizer.")
 
+    # def run_loop(self):
+    #     while (
+    #         not self.lr_anneal_steps
+    #         or self.step + self.resume_step < self.lr_anneal_steps
+    #     ):
+    #         batch, cond = next(self.data)
+    #         self.run_step(batch, cond)
+    #         if self.step % self.log_interval == 0:
+    #             logger.dumpkvs()
+    #         if self.step % self.save_interval == 0:
+    #             self.save()
+    #             # Run for a finite amount of time in integration tests.
+    #             if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
+    #                 return
+    #         self.step += 1
+    #     # Save the last checkpoint if it wasn't already saved.
+    #     if (self.step - 1) % self.save_interval != 0:
+    #         self.save()
+
     def run_loop(self):
-        while (
-            not self.lr_anneal_steps
-            or self.step + self.resume_step < self.lr_anneal_steps
-        ):
+        while self.step + self.resume_step < self.max_steps:
             batch, cond = next(self.data)
             self.run_step(batch, cond)
             if self.step % self.log_interval == 0:
@@ -175,9 +193,12 @@ class TrainLoop:
                 if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
                     return
             self.step += 1
+
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
+        logger.log("Training completed.")
+
 
     def run_step(self, batch, cond):
         self.forward_backward(batch, cond)
@@ -229,17 +250,21 @@ class TrainLoop:
 
     def _lr_lambda(self, step):
         """
-        Warmup + Anneal + 유지 스케줄링 함수
+        Warmup 이후 10000 스텝 동안 학습률 유지,
+        그 이후 5000 스텝마다 학습률을 절반씩 감소.
         """
-        base_lr = self.lr  # Anneal 이후 유지할 기본 학습률
-        if step < self.warmup_steps:  # Warmup 단계
+        if step >= self.max_steps:  # 종료 단계
+            return 0.0
+        elif step < self.warmup_steps:  # Warmup 단계
+            # Warmup 단계에서 학습률 선형 증가
             return step / self.warmup_steps
-        elif step < self.warmup_steps + self.lr_anneal_steps:  # Anneal 단계
-            anneal_start = self.warmup_steps
-            frac_done = (step - anneal_start) / self.lr_anneal_steps
-            return 1.0 - frac_done  # Annealing에서 선형적으로 감소
-        else:  # Anneal 이후
-            return base_lr / self.lr  # 기본 학습률 유지
+        elif step < self.warmup_steps + self.max_steps:  # 유지 단계
+            # Warmup 이후 10000 스텝 동안 학습률 유지
+            return 1.0
+        else:  # 감소 단계
+            # 10000 스텝마다 학습률 절반 감소
+            decay_steps = step - (self.warmup_steps + 10000)
+            return 0.5 ** ((decay_steps + 10000) // 10000)
     
     def _anneal_lr(self):
         if not self.lr_anneal_steps:

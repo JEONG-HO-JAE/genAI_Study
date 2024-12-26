@@ -53,6 +53,7 @@ def main():
         schedule_sampler=schedule_sampler,
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
+        max_steps=args.max_steps,
         warmup_steps=args.warmup_steps,
     ).run_loop()
 
@@ -65,6 +66,7 @@ def create_argparser():
         weight_decay=0.0,
         lr_anneal_steps=0,
         warmup_steps=0,
+        max_steps=0,
         batch_size=1,
         microbatch=-1,  # -1 disables microbatches
         ema_rate="0.9999",  # comma-separated list of EMA values

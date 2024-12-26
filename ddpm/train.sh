@@ -13,4 +13,4 @@ cp config.env "$LOGDIR/config.env"
 echo "config.env saved to $LOGDIR"
 
 # 명령 실행
-python scripts/image_train.py $DATA_DIR $MODEL_FLAGS $DIFFUSION_FLAGS $TRAIN_FLAGS
+mpiexec -n 2 python scripts/image_train.py $DATA_DIR $MODEL_FLAGS $DIFFUSION_FLAGS $TRAIN_FLAGS

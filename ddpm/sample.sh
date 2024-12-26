@@ -5,6 +5,7 @@ echo "DIFFUSION_FLAGS: $DIFFUSION_FLAGS"
 echo "DATA_DIR: $DATA_DIR"
 
 export LOGDIR
+find "$LOGDIR" -type f -name "model*.pt"
 EMA_FILE=$(find "$LOGDIR" -type f -name "model*.pt" | tail -n 1)
 echo "EMA_FILE: $EMA_FILE"
 

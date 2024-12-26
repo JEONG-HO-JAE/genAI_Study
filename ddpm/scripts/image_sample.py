@@ -25,9 +25,9 @@ def main():
     args = create_argparser().parse_args()
     
     # Set random seed
-    seed = 42
-    random.seed(seed)
-    th.manual_seed(seed)
+    # seed = 42
+    # random.seed(seed)
+    # th.manual_seed(seed)
 
     dist_util.setup_dist()
     logger.configure()
@@ -145,8 +145,11 @@ def save_samples(all_images, all_labels, args, timestep_index, xt):
     if args.class_cond:
         label_arr = np.concatenate(all_labels, axis=0)
         label_arr = label_arr[: args.num_samples]
-    xt_np = xt.cpu().numpy()  # Convert x_T to numpy
-    xt_np = np.transpose(xt_np, (0, 2, 3, 1))  # (N, C, H, W) -> (N, H, W, C)
+    if xt is not None:
+        xt_np = xt.cpu().numpy()  # Convert x_T to numpy
+        xt_np = np.transpose(xt_np, (0, 2, 3, 1))  # (N, C, H, W) -> (N, H, W, C)
+    else:
+        xt_np = []
     
     if dist.get_rank() == 0:
         shape_str = "x".join([str(x) for x in arr.shape])
